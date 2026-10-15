@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 团队日报系统（登录页重做单文件预览）</title>
+<!--
+  ============================================================
+  团队日报系统 · 登录页重做（单文件版 · 参考飞书）
+  ------------------------------------------------------------
+  这个文件是**自包含**的：不依赖任何脚本 / 字体 / 图片，双击即开。
+  线上站点里的同一套设计已经落进 assets/styles.css（.login-* / .lg-* 段）
+  与 assets/app.js（loginHTML / bindLogin / qrSVG），两边视觉一致。
+  组件id 与线上保持同名（lgPhone / lgCode / lgSend / lgAgree / lgGo…），
+  所以这份代码可以直接搬进项目当替换件。
+
+  原型边界：没有短信网关、没接微信开放平台 ——
+  验证码是固定演示码 8888（页面直接显示并自动填入），二维码是本地画的占位图。
+  ============================================================
+-->
+<style>
+:root{
+  --bg:#F5F6F7; --surface:#fff; --surface-2:#FAFBFC; --surface-3:#F2F3F5;
+  --border:#E5E6EB; --border-2:#D0D3D9;
+  --text:#1F2329; --text-2:#646A73; --text-3:#8F959E;
+  --accent:#3370FF; --accent-2:#245BDB; --accent-soft:#EFF3FD;
+  --danger:#F54A45; --ok:#34C724; --wx:#07C160;
+  --r:8px; --r-sm:6px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",Arial,sans-serif;
+  color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;
+}
+h1,p{margin:0}
+input,button{font:inherit;color:inherit}
+
+/* ---------- 页面骨架：纯色浅灰底 + 垂直居中 ---------- */
+.login-root{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:48px 20px;overflow-y:auto;
+}
+/* ---------- 卡片：400px / 圆角 8 / 内边距 40 / 极轻阴影 ---------- */
+.lg-card{
+  width:100%;max-width:400px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r);
+  box-shadow:0 1px 2px rgba(31,35,41,.03),0 8px 24px rgba(31,35,41,.06);
+  overflow:hidden;
+}
+.lg-card-in{padding:40px}
+.lg-head{display:flex;align-items:center;gap:10px}
+.lg-mark{
+  width:30px;height:30px;border-radius:7px;background:var(--accent);color:#fff;
+  font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:none;
+}
+.lg-name{font-size:15px;font-weight:600;letter-spacing:.2px;line-height:1.25}
+.lg-name span{display:block;font-size:10.5px;font-weight:400;color:var(--text-3);letter-spacing:1px;margin-top:1px}
+.lg-h1{font-size:22px;font-weight:600;letter-spacing:.2px;margin-top:28px}
+.lg-sub{font-size:13px;color:var(--text-3);margin-top:6px}
+
+/* ---------- Tab ---------- */
+.lg-tabs{display:flex;gap:24px;margin-top:24px;border-bottom:1px solid var(--border)}
+.lg-tab{
+  padding:0 0 10px;margin-bottom:-1px;border:0;border-bottom:2px solid transparent;
+  background:none;font-size:14px;color:var(--text-2);cursor:pointer;transition:color .15s;
+}
+.lg-tab:hover{color:var(--text)}
+.lg-tab.on{color:var(--accent);font-weight:600;border-bottom-color:var(--accent)}
+.lg-pane{padding-top:20px}
+
+/* ---------- 表单字段：42px / 圆角 6 / 聚焦飞书蓝 ---------- */
+.lg-lb{display:block;font-size:12px;color:var(--text-2);margin:0 0 6px}
+.lg-lb:not(:first-child){margin-top:16px}
+.lg-inp-box{
+  display:flex;align-items:center;height:42px;padding:0 12px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);
+  transition:border-color .15s,box-shadow .15s;
+}
+.lg-inp-box:hover{border-color:var(--border-2)}
+.lg-inp-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(51,112,255,.1)}
+.lg-inp-box.err{border-color:var(--danger)}
+.lg-inp-box.err:focus-within{box-shadow:0 0 0 3px rgba(245,74,69,.1)}
+.lg-inp{flex:1;min-width:0;height:100%;border:0;outline:0;background:none;font-size:14px}
+.lg-inp::placeholder{color:var(--text-3)}
+.lg-prefix{flex:none;padding-right:10px;margin-right:10px;border-right:1px solid var(--border);
+  font-size:14px;color:var(--text-2);line-height:1}
+.lg-eye{flex:none;border:0;background:none;padding:0 2px;font-size:12px;color:var(--text-3);cursor:pointer}
+.lg-eye:hover{color:var(--accent)}
+.lg-code{display:flex;gap:8px;align-items:center}
+.lg-code .lg-inp-box{flex:1}
+.lg-send{
+  flex:none;height:42px;padding:0 14px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface);color:var(--accent);font-size:13px;cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,background .15s,color .15s;
+}
+.lg-send:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+.lg-send:disabled{border-color:var(--border);background:var(--surface-3);color:var(--text-3);cursor:not-allowed}
+.lg-capq{
+  flex:none;height:42px;min-width:112px;padding:0 12px;cursor:pointer;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  background:linear-gradient(105deg,var(--surface-3),var(--surface-2));
+  font:italic 15px/1 Georgia,"Times New Roman",serif;letter-spacing:2px;color:var(--text);
+}
+.lg-err{display:none;margin-top:6px;font-size:12px;line-height:1.5;color:var(--danger)}
+.lg-err.on{display:block}
+.lg-err-form{margin-top:12px}
+.lg-hint{display:none;margin-top:6px;font-size:12px;line-height:1.6;color:var(--text-2)}
+.lg-hint.on{display:block}
+.lg-hint b{color:var(--accent);font-variant-numeric:tabular-nums;letter-spacing:.5px}
+.lg-muted{color:var(--text-3)}
+.lg-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;font-size:12px;color:var(--text-3)}
+
+/* ---------- 协议 + 主按钮 ---------- */
+.lg-agree{display:flex;gap:8px;align-items:flex-start;margin-top:18px;font-size:12px;line-height:1.6;color:var(--text-2);cursor:pointer}
+.lg-agree input{flex:none;width:14px;height:14px;margin:2px 0 0;accent-color:var(--accent);cursor:pointer}
+.lg-link{color:var(--accent);cursor:pointer;text-decoration:none}
+.lg-link:hover{text-decoration:underline}
+.lg-submit{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;height:42px;margin-top:16px;border:0;border-radius:var(--r-sm);
+  background:var(--accent);color:#fff;font-size:14px;font-weight:500;cursor:pointer;
+  transition:background .15s,opacity .15s;
+}
+.lg-submit:hover:not(:disabled){background:var(--accent-2)}
+.lg-submit:disabled{opacity:.5;cursor:not-allowed}
+.lg-spin{display:none;width:14px;height:14px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:lgspin .7s linear infinite}
+.lg-submit.loading .lg-spin{display:inline-block}
+.lg-spin.dark{border-color:rgba(31,35,41,.18);border-top-color:var(--text-2);display:inline-block}
+@keyframes lgspin{to{transform:rotate(360deg)}}
+
+/* ---------- 分割线 + 微信入口 + 二维码 ---------- */
+.lg-div{display:flex;align-items:center;gap:12px;margin:24px 0 14px;font-size:12px;color:var(--text-3)}
+.lg-div::before,.lg-div::after{content:"";flex:1;height:1px;background:var(--border)}
+.lg-wx{
+  display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:42px;
+  border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);
+  font-size:14px;color:var(--text);cursor:pointer;transition:border-color .15s,color .15s,background .15s;
+}
+.lg-wx svg{width:17px;height:17px;fill:var(--wx);flex:none}
+.lg-wx:hover,.lg-wx.on{border-color:var(--wx);color:#0a9e4f;background:#F5FCF8}
+.lg-qr{
+  margin-top:14px;padding:18px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface-2);display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.lg-qr[hidden]{display:none}
+.lg-qr-box{
+  position:relative;width:168px;height:168px;padding:8px;background:#fff;
+  border:1px solid var(--border);border-radius:var(--r-sm);
+  display:flex;align-items:center;justify-content:center;
+}
+.lg-qr-box svg{width:150px;height:150px;display:block}
+.lg-qr-mask{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;padding:14px;text-align:center;background:rgba(255,255,255,.94);
+  font-size:12px;line-height:1.6;color:var(--text-2);
+}
+.lg-qr-tip{font-size:12px;line-height:1.7;color:var(--text-2);text-align:center}
+
+/* ---------- 卡片底部 + 演示行 ---------- */
+.lg-card-f{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:6px 20px;
+  padding:13px 40px;border-top:1px solid var(--border);background:var(--surface-2);
+  font-size:12px;color:var(--text-3);
+}
+.lg-demo{margin-top:18px;text-align:center;font-size:12px;line-height:2.1;color:var(--text-3)}
+.lg-demo b{color:var(--text-2);font-weight:600}
+.lg-chip{border:0;background:none;padding:0 2px;margin:0 6px;font-size:12px;color:var(--accent);cursor:pointer}
+.lg-chip:hover{text-decoration:underline}
+
+/* 抖动：未勾协议 / 提交被拒 */
+.lg-shake{animation:lgshake .32s ease-in-out}
+@keyframes lgshake{
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  40%{transform:translateX(5px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(2px)}
+}
+@media (max-width:480px){
+  .login-root{padding:32px 16px}
+  .login-root::before,.login-root::after{min-height:0}
+  .lg-card-in{padding:28px 22px}
+  .lg-card-f{padding:12px 22px;gap:6px 14px}
+  .lg-h1{margin-top:22px}
+}
+@media (prefers-reduced-motion:reduce){ .lg-shake,.lg-spin{animation:none} }
+</style>
+</head>
+<body>
+
+<div class="login-root">
+  <div class="lg-card" id="lgCard">
+    <div class="lg-card-in">
+
+      <div class="lg-head">
+        <span class="lg-mark">AL</span>
+        <div class="lg-name">团队日报系统<span>ALAIFU DAILY</span></div>
+      </div>
+
+      <h1 class="lg-h1">登录</h1>
+      <p class="lg-sub">使用手机号或微信登录</p>
+
+      <div class="lg-tabs" role="tablist">
+        <button type="button" class="lg-tab on" role="tab" data-tab="code" aria-selected="true">验证码登录</button>
+        <button type="button" class="lg-tab" role="tab" data-tab="pass" aria-selected="false">密码登录</button>
+      </div>
+
+      <form id="lgForm" novalidate>
+
+        <!-- 手机号 + 验证码 -->
+        <div data-pane="code"><div class="lg-pane">
+          <label class="lg-lb" for="lgPhone">手机号</label>
+          <div class="lg-inp-box" data-box="phone"><span class="lg-prefix">+86</span>
+            <input id="lgPhone" class="lg-inp" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel" placeholder="请输入手机号"></div>
+          <div class="lg-err" id="lgPhoneErr"></div>
+
+          <label class="lg-lb" for="lgCode">验证码</label>
+          <div class="lg-code">
+            <div class="lg-inp-box" data-box="code">
+              <input id="lgCode" class="lg-inp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="请输入验证码"></div>
+            <button type="button" class="lg-send" id="lgSend">获取验证码</button>
+          </div>
+          <div class="lg-err" id="lgCodeErr"></div>
+          <div class="lg-hint" id="lgHint"></div>
+
+          <div id="lgCapWrap" hidden>
+            <label class="lg-lb" for="lgCap">图形验证码</label>
+            <div class="lg-code">
+              <div class="lg-inp-box" data-box="cap"><input id="lgCap" class="lg-inp" maxlength="2" inputmode="numeric" placeholder="请输入计算结果"></div>
+              <button type="button" class="lg-capq" id="lgCapQ" title="看不清？点击换一题"></button>
+            </div>
+            <div class="lg-err" id="lgCapErr"></div>
+          </div>
+        </div></div>
+
+        <!-- 手机号 / 账号 + 密码 -->
+        <div data-pane="pass" hidden><div class="lg-pane">
+          <label class="lg-lb" for="lgAcct">手机号 / 账号</label>
+          <div class="lg-inp-box" data-box="acct"><input id="lgAcct" class="lg-inp" placeholder="请输入手机号或账号"></div>
+          <div class="lg-err" id="lgAcctErr"></div>
+
+          <label class="lg-lb" for="lgPass">密码</label>
+          <div class="lg-inp-box" data-box="pass">
+            <input id="lgPass" class="lg-inp" type="password" placeholder="请输入密码">
+            <button type="button" class="lg-eye" id="lgEye">显示</button></div>
+          <div class="lg-err" id="lgPassErr"></div>
+          <div class="lg-row"><span class="lg-muted">演示环境密码任意 4 位</span><a class="lg-link" id="lgForgot">忘记密码？</a></div>
+        </div></div>
+
+        <label class="lg-agree"><input type="checkbox" id="lgAgree">
+          <span>我已阅读并同意<a class="lg-link" data-doc="terms">《用户协议》</a>和<a class="lg-link" data-doc="privacy">《隐私政策》</a></span></label>
+        <div class="lg-err lg-err-form" id="lgErr"></div>
+
+        <button class="lg-submit" id="lgGo" type="submit"><span class="lg-spin"></span><span class="lg-submit-t">登录</span></button>
+      </form>
+
+      <div class="lg-div"><span>其他登录方式</span></div>
+      <button type="button" class="lg-wx" id="lgWxBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.2 3C5.2 3 2 5.7 2 9c0 1.9 1.1 3.5 2.8 4.6l-.7 2.1 2.4-1.2c.8.2 1.7.4 2.6.4h.6c-.1-.5-.2-1-.2-1.5 0-3.3 3.2-6 7.1-6h.6C16.6 4.6 13.2 3 9.2 3Zm-2.5 3.4a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Zm5 0a.9.9 0 1 1 0 1.8.9.9 0 0 1 0-1.8Z"/><path d="M22 13.4c0-2.6-2.6-4.7-5.8-4.7s-5.8 2.1-5.8 4.7 2.6 4.7 5.8 4.7c.7 0 1.3-.1 1.9-.3l1.9.9-.5-1.6c1.5-.9 2.5-2.2 2.5-3.7Zm-7.7-1.5a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Zm3.9 0a.75.75 0 1 1 0 1.5.75.75 0 0 1 0-1.5Z"/></svg>
+        微信扫码登录</button>
+
+      <div class="lg-qr" id="lgQr" hidden>
+        <div class="lg-qr-box" id="lgQrBox"></div>
+        <div class="lg-qr-tip" id="lgQrTip">请使用微信扫码登录</div>
+        <button type="button" class="lg-link" id="lgQrRefresh" hidden>二维码已过期，点击刷新</button>
+        <button type="button" class="lg-link" id="lgQrDemo" hidden>原型演示：模拟扫码</button>
+      </div>
+    </div>
+
+    <div class="lg-card-f">
+      <a class="lg-link" data-doc="privacy">隐私政策</a>
+      <a class="lg-link" data-doc="terms">服务条款</a>
+      <a class="lg-link" data-doc="contact">联系管理员</a>
+    </div>
+  </div>
+
+  <div class="lg-demo">演示环境：
+    <button type="button" class="lg-chip" data-pick="13800000003">王润佳</button>
+    <button type="button" class="lg-chip" data-pick="13800000001">Candice</button>
+    <button type="button" class="lg-chip" data-pick="13800000004">宋天意</button>
+    <button type="button" class="lg-chip" data-pick="13800000021">王弋</button>
+    <br>密码任意 4 位 · 验证码固定 <b>8888</b>
+  </div>
+</div>
+
+<script>
+/* ---------- 单文件交互：与线上 app.js 的 bindLogin 等价（去掉 Store，纯前端演示） ---------- */
+(function () {
+  const DEMO_CODE = '8888';
+  const $  = s => document.querySelector(s);
+  const $$ = s => Array.prototype.slice.call(document.querySelectorAll(s));
+  const E  = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const isPhone = v => /^1[3-9]\d{9}$/.test(String(v || '').replace(/[\s\-()]/g, ''));
+  const maskPhone = v => { const n = String(v).replace(/[\s\-()]/g, ''); return isPhone(n) ? n.slice(0,3) + '****' + n.slice(7) : n; };
+
+  const S = { fails:0, capQ:null, sendTimer:null, sendLeft:0, qrTimer:null, lockTimer:null };
+
+  const setErr = (id, msg) => { const n = $('#' + id); if (!n) return; n.textContent = msg || ''; n.classList.toggle('on', !!msg); };
+  const markBox = (k, bad) => { const b = $('[data-box="' + k + '"]'); if (b) b.classList.toggle('err', !!bad); };
+  const clearErrs = () => {
+    ['lgPhoneErr','lgCodeErr','lgAcctErr','lgPassErr','lgCapErr','lgErr'].forEach(i => setErr(i, ''));
+    ['phone','code','acct','pass','cap'].forEach(k => markBox(k, false));
+  };
+  const shake = () => { const c = $('#lgCard'); c.classList.remove('lg-shake'); void c.offsetWidth; c.classList.add('lg-shake'); };
+  const tab = () => ($('.lg-tab.on') || {}).dataset.tab;
+
+  /* Tab */
+  $$('.lg-tab').forEach(b => b.onclick = () => {
+    $$('.lg-tab').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-selected', on); });
+    $$('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== b.dataset.tab; });
+    clearErrs();
+    setTimeout(() => { const f = $(b.dataset.tab === 'code' ? '#lgPhone' : '#lgAcct'); f.focus(); }, 20);
+  });
+
+  /* 密码显隐 */
+  $('#lgEye').onclick = () => {
+    const p = $('#lgPass'), show = p.type === 'password';
+    p.type = show ? 'text' : 'password';
+    $('#lgEye').textContent = show ? '隐藏' : '显示';
+    p.focus();
+  };
+
+  /* 获取验证码：60 秒倒计时 + 演示码自动填入 */
+  $('#lgSend').onclick = () => {
+    clearErrs();
+    if (!isPhone($('#lgPhone').value)) {
+      setErr('lgPhoneErr', '请输入 11 位手机号'); markBox('phone', true); shake(); return;
+    }
+    const btn = $('#lgSend');
+    S.sendLeft = 60;
+    const tick = () => {
+      if (S.sendLeft <= 0) { clearInterval(S.sendTimer); btn.disabled = false; btn.textContent = '重新获取'; return; }
+      btn.disabled = true; btn.textContent = S.sendLeft + 's 后重试'; S.sendLeft--;
+    };
+    tick(); S.sendTimer = setInterval(tick, 1000);
+    const hint = $('#lgHint');
+    hint.innerHTML = '验证码已发送至 ' + maskPhone($('#lgPhone').value) + '，5 分钟内有效。<br>演示环境验证码：<b>' + DEMO_CODE + '</b>（已自动填入）';
+    hint.classList.add('on');
+    const ci = $('#lgCode'); ci.value = DEMO_CODE; ci.focus(); ci.select();
+  };
+
+  /* 图形验证码：连续失败 3 次才出现 */
+  const newCap = () => {
+    const a = 1 + Math.floor(Math.random() * 9), b = 1 + Math.floor(Math.random() * 9), plus = Math.random() < .5;
+    S.capQ = plus ? a + b : Math.max(a, b) - Math.min(a, b);
+    $('#lgCapQ').textContent = plus ? a + ' + ' + b + ' = ?' : Math.max(a, b) + ' − ' + Math.min(a, b) + ' = ?';
+    $('#lgCap').value = '';
+  };
+  $('#lgCapQ').onclick = newCap;
+
+  const busy = (on, text) => {
+    const b = $('#lgGo');
+    b.classList.toggle('loading', on); b.disabled = on;
+    $('#lgGo .lg-submit-t').textContent = text || '登录';
+  };
+
+  /* 提交 */
+  $('#lgForm').onsubmit = e => {
+    e.preventDefault();
+    clearErrs();
+    if (!$('#lgAgree').checked) { setErr('lgErr', '请先阅读并同意《用户协议》和《隐私政策》'); shake(); return; }
+
+    if (tab() === 'code') {
+      if (!isPhone($('#lgPhone').value)) { setErr('lgPhoneErr', '请输入 11 位手机号'); markBox('phone', true); $('#lgPhone').focus(); shake(); return; }
+      if (!$('#lgCode').value.trim()) { setErr('lgCodeErr', '请输入验证码'); markBox('code', true); $('#lgCode').focus(); shake(); return; }
+      if (S.capQ != null && $('#lgCap').value.trim() !== String(S.capQ)) {
+        setErr('lgCapErr', '图形验证码错误'); markBox('cap', true); newCap(); $('#lgCap').focus(); shake(); return;
+      }
+    } else {
+      if (!$('#lgAcct').value.trim()) { setErr('lgAcctErr', '请输入手机号或账号'); markBox('acct', true); shake(); return; }
+      if (!$('#lgPass').value.trim()) { setErr('lgPassErr', '请输入密码'); markBox('pass', true); shake(); return; }
+    }
+
+    busy(true, '登录中…');
+    setTimeout(() => {
+      const codeOk = $('#lgCode').value.trim() === DEMO_CODE;
+      const passOk = $('#lgPass').value.trim().length >= 4;
+      const ok = tab() === 'code' ? codeOk : passOk;
+      if (ok) { busy(true, '登录成功'); setTimeout(() => alert('登录成功 → 跳转工作台'), 320); return; }
+      busy(false);
+      S.fails++;
+      if (S.fails >= 3 && $('#lgCapWrap').hidden) { $('#lgCapWrap').hidden = false; newCap(); }
+      setErr(tab() === 'code' ? 'lgCodeErr' : 'lgPassErr', tab() === 'code' ? '验证码错误' : '账号或密码错误');
+      markBox(tab() === 'code' ? 'code' : 'pass', true);
+      shake();
+    }, 620);
+  };
+
+  /* 微信扫码：卡片内展开 · 加载中 → 就绪 → 已扫码待确认 → 已过期 */
+  const qrSVG = token => {
+    const N = 29, S2 = 4, PAD = 2, size = (N + PAD * 2) * S2;
+    let seed = 7;
+    for (let i = 0; i < token.length; i++) seed = (seed * 31 + token.charCodeAt(i)) % 2147483647;
+    const rnd = () => { seed = (seed * 48271) % 2147483647; return seed / 2147483647; };
+    const inF = (x, y) => (x < 7 && y < 7) || (x >= N - 7 && y < 7) || (x < 7 && y >= N - 7);
+    const R = (x, y, w, h, f) => '<rect x="' + ((x + PAD) * S2) + '" y="' + ((y + PAD) * S2) + '" width="' + (w * S2) + '" height="' + (h * S2) + '" fill="' + f + '"/>';
+    let cells = '';
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { if (!inF(x, y) && rnd() < .46) cells += R(x, y, 1, 1, '#1F2329'); }
+    const finder = (x, y) => R(x, y, 7, 7, '#1F2329') + R(x + 1, y + 1, 5, 5, '#fff') + R(x + 2, y + 2, 3, 3, '#1F2329');
+    return '<svg viewBox="0 0 ' + size + ' ' + size + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="演示二维码">' +
+      '<rect width="' + size + '" height="' + size + '" fill="#fff"/>' + cells + finder(0, 0) + finder(N - 7, 0) + finder(0, N - 7) + '</svg>';
+  };
+  const loadQr = () => {
+    const box = $('#lgQrBox');
+    box.innerHTML = '<div class="lg-qr-mask"><span class="lg-spin dark"></span><span>二维码加载中…</span></div>';
+    $('#lgQrTip').textContent = '二维码加载中…';
+    $('#lgQrRefresh').hidden = true; $('#lgQrDemo').hidden = true;
+    if (S.qrTimer) clearTimeout(S.qrTimer);
+    S.qrTimer = setTimeout(() => {
+      box.innerHTML = qrSVG('alef-' + Date.now());
+      $('#lgQrTip').innerHTML = '请使用微信扫码登录<br><span class="lg-muted">演示二维码 · 原型未接微信开放平台</span>';
+      $('#lgQrDemo').hidden = false;
+      S.qrTimer = setTimeout(() => {
+        box.insertAdjacentHTML('beforeend', '<div class="lg-qr-mask"><span>二维码已过期</span></div>');
+        $('#lgQrTip').textContent = '二维码已过期，请刷新后重新扫码';
+        $('#lgQrRefresh').hidden = false; $('#lgQrDemo').hidden = true;
+      }, 60000);
+    }, 900);
+  };
+  $('#lgWxBtn').onclick = () => {
+    const qr = $('#lgQr');
+    if (!qr.hidden) { qr.hidden = true; $('#lgWxBtn').classList.remove('on'); return; }
+    qr.hidden = false; $('#lgWxBtn').classList.add('on'); loadQr();
+  };
+  $('#lgQrRefresh').onclick = loadQr;
+  $('#lgQrDemo').onclick = () => {
+    $('#lgQrBox').insertAdjacentHTML('beforeend',
+      '<div class="lg-qr-mask"><span>扫描成功，请在手机上确认</span><button type="button" class="lg-link" id="lgQrOk">（演示）确认登录</button></div>');
+    $('#lgQrTip').textContent = '已扫码 · 等待你在手机端确认…';
+    $('#lgQrDemo').hidden = true;
+    $('#lgQrOk').onclick = () => { busy(true, '登录成功'); setTimeout(() => alert('扫码登录成功 → 跳转工作台'), 320); };
+  };
+
+  /* 协议 / 帮助：原型用 alert 代替站内弹层 */
+  const DOCS = {
+    terms:'本系统仅限公司内部账号使用。所有登录与关键操作都会记入审计日志。（原型说明）',
+    privacy:'数据只保存在本机浏览器或公司内网服务器，不上传任何第三方平台。（原型说明）',
+    contact:'遇到登录问题请联系 PM 王润佳（Olivia）或系统管理员。'
+  };
+  $$('[data-doc]').forEach(a => a.onclick = () => alert(DOCS[a.dataset.doc]));
+  $('#lgForgot').onclick = () => alert('切换到「验证码登录」用手机号直接进入；密码需要重置请联系管理员。（原型说明）');
+
+  /* 演示身份：填入手机号并直接发码 */
+  $$('[data-pick]').forEach(b => b.onclick = () => {
+    if (tab() !== 'code') { const t = $('.lg-tab[data-tab="code"]'); if (t) t.click(); }
+    $('#lgPhone').value = b.dataset.pick;
+    markBox('phone', false); setErr('lgPhoneErr', '');
+    if (!$('#lgSend').disabled) $('#lgSend').click(); else $('#lgCode').focus();
+  });
+
+  setTimeout(() => { const f = $('#lgPhone'); if (f) f.focus(); }, 60);
+})();
+</script>
+</body>
+</html>
