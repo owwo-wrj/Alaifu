@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="YVqwGdnA9ITWIkf10rvDx8">
+<head data-page-node-id="cBMl75hqcJhZBDY18lLzYw">
+<meta charset="UTF-8" data-page-node-id="9oMBFovaQ9rxZPoSd8mZ4m">
+<meta name="viewport" content="width=device-width, initial-scale=1" data-page-node-id="2iOdHdnUolvrj5484N9XaA">
+<meta name="robots" content="noindex, nofollow" data-page-node-id="nLSlmLydeHrPf0LFDCKv8w">
+<title>阿莱夫日报系统 · ALAIFU Daily</title>
+<!-- 公司 logo（INSpool 字标）：
+     assets/logo.png       黑色透明版 → 侧栏品牌区 + 标签页图标
+     assets/logo-light.png 白色透明版 → 登录页深色品牌区
+     两张图都由原图裁边 + 白底转透明生成；启动时探测一次 logo.png，
+     若哪天文件被移走会自动回退到「AL」字标，不会出现破图，也不会刷一堆 404。 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233370FF'/%3E%3Ctext x='16' y='21.5' font-family='Arial' font-size='13' font-weight='600' fill='white' text-anchor='middle'%3EAL%3C/text%3E%3C/svg%3E" data-page-node-id="qGgOHi68fPmn8Jbh4cNA5P">
+<link rel="stylesheet" href="assets/styles.css" data-page-node-id="jMFBaojvQVDXDdW5Z65Uoe">
+</head>
+<body data-page-node-id="fmaFJfMNXtQUBYUaKiS816">
+  <div id="login" class="login-root" hidden data-page-node-id="fqhgTF01XRu8N5JyDc9dPA"></div>
+  <div class="app" data-page-node-id="luJxA8TOSvkX7TmI0pEvzR">
+    <aside class="sidebar" id="sidebar" data-page-node-id="GmCoMjWteh9GDGARCAIcZR"></aside>
+    <div class="main" data-page-node-id="XE3UpPm4JRhU8fjAppECUN">
+      <header class="topbar" id="topbar" data-page-node-id="47bljW4cglDzAhmBJgO3OW"></header>
+      <main class="content" id="view" data-page-node-id="hWtSBxMS8QuPtin91tjHdF"></main>
+    </div>
+  </div>
+  <div id="toast" class="toast-wrap" data-page-node-id="t8DA1xs5oHS7h8F18yCvLQ"></div>
+  <div id="modal" class="modal-root" hidden data-page-node-id="hHDEEvmNXeg0V11UHqRKba"></div>
+
+  <script src="assets/seed.js"></script>
+  <script src="assets/ui.js"></script>
+  <script src="assets/store.js"></script>
+  <script src="assets/views-daily.js"></script>
+  <script src="assets/views-overview.js"></script>
+  <script src="assets/views-weekly.js"></script>
+  <script src="assets/views-weekreport.js"></script>
+  <script src="assets/views-kb.js"></script>
+  <!-- 工作台复用知识库的迷你 Markdown 渲染器（UI.mdHTML），必须排在 views-kb.js 之后 -->
+  <script src="assets/views-workbench.js"></script>
+  <!-- 每日任务与任务统计：不依赖知识库渲染器，放在 workbench 之后即可 -->
+  <script src="assets/views-task.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
